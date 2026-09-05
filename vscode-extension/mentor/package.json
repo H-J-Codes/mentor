@@ -9,13 +9,19 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": ["onStartupFinished"],
   "main": "./extension.js",
-  "contributes": {
-    "commands": [{
-      "command": "mentor.helloWorld",
-      "title": "MENTOR: Say Hello"
-    }]
+    "contributes": {
+    "commands": [
+      {
+        "command": "mentor.helloWorld",
+        "title": "MENTOR: Say Hello"
+      },
+      {
+        "command": "mentor.toggle",
+        "title": "MENTOR: Toggle On/Off"
+      }
+    ]
   },
   "scripts": {
     "lint": "eslint .",

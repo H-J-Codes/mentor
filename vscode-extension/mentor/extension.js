@@ -1,38 +1,50 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-const vscode = require("vscode");
+const vscode = require('vscode');
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+// This variable remembers whether MENTOR is currently ON or OFF
+let mentorEnabled = false;
 
-/**
- * @param {vscode.ExtensionContext} context
- */
+// This will hold our status bar button so we can update it later
+let statusBarItem;
+
 function activate(context) {
-  // Use the console to output diagnostic information (console.log) and errors (console.error)
-  // This line of code will only be executed once when your extension is activated
-  console.log('Congratulations, your extension "mentor" is now active!');
+	console.log('MENTOR extension is now active!');
 
-  // The command has been defined in the package.json file
-  // Now provide the implementation of the command with  registerCommand
-  // The commandId parameter must match the command field in package.json
-  const disposable = vscode.commands.registerCommand(
-    "mentor.helloWorld",
-    function () {
-      // The code you place here will be executed every time your command is executed
+	// Create the status bar button, aligned to the left, priority 100
+	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+	statusBarItem.command = 'mentor.toggle'; // clicking it will run this command
+	updateStatusBar(); // set its initial text/color
+	statusBarItem.show(); // actually make it visible
+	context.subscriptions.push(statusBarItem);
 
-      // Display a message box to the user
-      vscode.window.showInformationMessage("MENTOR is watching your code. 🧑‍🏫");
-    },
-  );
+	// Register the toggle command
+	const toggleCommand = vscode.commands.registerCommand('mentor.toggle', function () {
+		mentorEnabled = !mentorEnabled; // flip true to false, or false to true
+		updateStatusBar();
 
-  context.subscriptions.push(disposable);
+		if (mentorEnabled) {
+			vscode.window.showInformationMessage('MENTOR is now ON 🧑‍🏫');
+		} else {
+			vscode.window.showInformationMessage('MENTOR is now OFF');
+		}
+	});
+
+	context.subscriptions.push(toggleCommand);
 }
 
-// This method is called when your extension is deactivated
+// Updates what the status bar button looks like, based on current state
+function updateStatusBar() {
+	if (mentorEnabled) {
+		statusBarItem.text = `$(mortar-board) MENTOR: ON`;
+		statusBarItem.backgroundColor = undefined;
+	} else {
+		statusBarItem.text = `$(mortar-board) MENTOR: OFF`;
+		statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+	}
+}
+
 function deactivate() {}
 
 module.exports = {
-  activate,
-  deactivate,
-};
+	activate,
+	deactivate
+}
