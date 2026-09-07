@@ -1,50 +1,110 @@
-const vscode = require('vscode');
+const vscode = require("vscode");
+const { exec } = require("child_process");
 
-// This variable remembers whether MENTOR is currently ON or OFF
 let mentorEnabled = false;
-
-// This will hold our status bar button so we can update it later
 let statusBarItem;
 
 function activate(context) {
-	console.log('MENTOR extension is now active!');
+  console.log("MENTOR extension is now active!");
 
-	// Create the status bar button, aligned to the left, priority 100
-	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-	statusBarItem.command = 'mentor.toggle'; // clicking it will run this command
-	updateStatusBar(); // set its initial text/color
-	statusBarItem.show(); // actually make it visible
-	context.subscriptions.push(statusBarItem);
+  statusBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    100,
+  );
+  statusBarItem.command = "mentor.toggle";
+  updateStatusBar();
+  statusBarItem.show();
+  context.subscriptions.push(statusBarItem);
 
-	// Register the toggle command
-	const toggleCommand = vscode.commands.registerCommand('mentor.toggle', function () {
-		mentorEnabled = !mentorEnabled; // flip true to false, or false to true
-		updateStatusBar();
+  const toggleCommand = vscode.commands.registerCommand(
+    "mentor.toggle",
+    async function () {
+      mentorEnabled = !mentorEnabled;
+      updateStatusBar();
 
-		if (mentorEnabled) {
-			vscode.window.showInformationMessage('MENTOR is now ON 🧑‍🏫');
-		} else {
-			vscode.window.showInformationMessage('MENTOR is now OFF');
-		}
-	});
+      if (mentorEnabled) {
+        try {
+          const response = await fetch("http://localhost:3000/ping");
+          const data = await response.json();
+          vscode.window.showInformationMessage(
+            `MENTOR is ON. Core says: ${data.message}`,
+          );
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            "MENTOR is ON, but could not reach mentor-core. Is the server running?",
+          );
+        }
+      } else {
+        vscode.window.showInformationMessage("MENTOR is now OFF");
+      }
+    },
+  );
+  context.subscriptions.push(toggleCommand);
 
-	context.subscriptions.push(toggleCommand);
+  const runFileCommand = vscode.commands.registerCommand(
+    "mentor.runFile",
+    async function () {
+      const editor = vscode.window.activeTextEditor;
+
+      if (!editor) {
+        vscode.window.showErrorMessage("No file is open to run.");
+        return;
+      }
+
+      const filePath = editor.document.fileName;
+      vscode.window.showInformationMessage(`MENTOR is running: ${filePath}`);
+
+      exec(`node "${filePath}"`, async (error, stdout, stderr) => {
+        const hasError = !!error;
+        const output = hasError ? stderr : stdout;
+
+        try {
+          const response = await fetch("http://localhost:3000/error", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              filePath: filePath,
+              hasError: hasError,
+              output: output,
+            }),
+          });
+          const data = await response.json();
+
+          if (hasError) {
+            vscode.window.showErrorMessage(
+              `MENTOR caught an error! Check output for details.`,
+            );
+          } else {
+            vscode.window.showInformationMessage(
+              `Ran successfully. Output: ${output.trim()}`,
+            );
+          }
+        } catch (fetchError) {
+          vscode.window.showErrorMessage(
+            "Could not reach mentor-core to report this.",
+          );
+        }
+      });
+    },
+  );
+  context.subscriptions.push(runFileCommand);
 }
 
-// Updates what the status bar button looks like, based on current state
 function updateStatusBar() {
-	if (mentorEnabled) {
-		statusBarItem.text = `$(mortar-board) MENTOR: ON`;
-		statusBarItem.backgroundColor = undefined;
-	} else {
-		statusBarItem.text = `$(mortar-board) MENTOR: OFF`;
-		statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-	}
+  if (mentorEnabled) {
+    statusBarItem.text = `$(mortar-board) MENTOR: ON`;
+    statusBarItem.backgroundColor = undefined;
+  } else {
+    statusBarItem.text = `$(mortar-board) MENTOR: OFF`;
+    statusBarItem.backgroundColor = new vscode.ThemeColor(
+      "statusBarItem.warningBackground",
+    );
+  }
 }
 
 function deactivate() {}
 
 module.exports = {
-	activate,
-	deactivate
-}
+  activate,
+  deactivate,
+};

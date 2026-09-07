@@ -80,6 +80,18 @@ app.post("/scan", (req, res) => {
       .json({ error: "Could not read that folder", details: error.message });
   }
 });
+app.post("/error", (req, res) => {
+  const { filePath, hasError, output } = req.body;
+
+  if (hasError) {
+    console.log("🐛 ERROR CAUGHT in:", filePath);
+    console.log("Details:", output);
+  } else {
+    console.log("✅ Ran successfully:", filePath);
+  }
+
+  res.json({ received: true });
+});
 
 app.listen(PORT, () => {
   console.log(`MENTOR CORE is running at http://localhost:${PORT}`);
