@@ -13,19 +13,19 @@
   "main": "./extension.js",
     "contributes": {
     "commands": [
-  {
-    "command": "mentor.helloWorld",
-    "title": "MENTOR: Say Hello"
-  },
-  {
-    "command": "mentor.toggle",
-    "title": "MENTOR: Toggle On/Off"
-  },
-  {
-    "command": "mentor.runFile",
-    "title": "MENTOR: Run Current File"
-  }
-]
+      {
+        "command": "mentor.helloWorld",
+        "title": "MENTOR: Say Hello"
+      },
+      {
+        "command": "mentor.toggle",
+        "title": "MENTOR: Toggle On/Off"
+      },
+      {
+        "command": "mentor.runFile",
+        "title": "MENTOR: Run Current File"
+      }
+    ]
   },
   "scripts": {
     "start": "node server.js",
