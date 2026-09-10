@@ -1,6 +1,7 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
+import { askAI } from "./ai.js";
 
 const app = express();
 const PORT = 3000;
@@ -80,17 +81,26 @@ app.post("/scan", (req, res) => {
       .json({ error: "Could not read that folder", details: error.message });
   }
 });
-app.post("/error", (req, res) => {
+app.post("/error", async (req, res) => {
   const { filePath, hasError, output } = req.body;
 
   if (hasError) {
     console.log("🐛 ERROR CAUGHT in:", filePath);
-    console.log("Details:", output);
+
+    const prompt = `A beginner programmer got this error:\n\n${output}\n\nIn 2-3 short sentences, explain WHAT this error means and WHY it likely happened. Do NOT give the fixed code or the exact solution — just help them understand the problem.`;
+
+    try {
+      const explanation = await askAI(prompt);
+      console.log("🧑‍🏫 MENTOR explains:", explanation);
+      res.json({ received: true, explanation: explanation });
+    } catch (aiError) {
+      console.log("Could not reach the AI:", aiError.message);
+      res.json({ received: true, explanation: null });
+    }
   } else {
     console.log("✅ Ran successfully:", filePath);
+    res.json({ received: true });
   }
-
-  res.json({ received: true });
 });
 
 app.listen(PORT, () => {
