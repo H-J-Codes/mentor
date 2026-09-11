@@ -87,7 +87,18 @@ app.post("/error", async (req, res) => {
   if (hasError) {
     console.log("🐛 ERROR CAUGHT in:", filePath);
 
-    const prompt = `A beginner programmer got this error:\n\n${output}\n\nIn 2-3 short sentences, explain WHAT this error means and WHY it likely happened. Do NOT give the fixed code or the exact solution — just help them understand the problem.`;
+    const prompt = `You are a coding mentor. A beginner got this error:
+
+${output}
+
+Rules you MUST follow:
+- Explain what the error MEANS in 1 sentence.
+- Explain why it likely happened in 1 sentence.
+- NEVER mention how to fix it.
+- NEVER write any code.
+- NEVER use words like "fix", "should", "ensure", "add a check", or "solution".
+
+Keep your entire answer under 40 words.`;
 
     try {
       const explanation = await askAI(prompt);
