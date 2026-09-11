@@ -28,13 +28,12 @@ function scanDirectory(dirPath, depth = 0, maxDepth = 3) {
 
   for (const item of items) {
     if (IGNORE_FOLDERS.includes(item.name)) {
-      continue; // skip this one entirely, don't even list it
+      continue;
     }
 
     const fullPath = path.join(dirPath, item.name);
 
     if (item.isDirectory()) {
-      // recursion: scanDirectory calls itself for this subfolder
       children.push(scanDirectory(fullPath, depth + 1, maxDepth));
     } else {
       children.push({ name: item.name, type: "file" });
@@ -46,6 +45,22 @@ function scanDirectory(dirPath, depth = 0, maxDepth = 3) {
     type: "folder",
     children: children,
   };
+}
+
+// Grabs the specific line the error happened on, straight from the real file
+function getCodeContext(filePath, output) {
+  try {
+    const lineMatch = output.match(/:(\d+)/);
+    if (!lineMatch) return null;
+
+    const lineNumber = parseInt(lineMatch[1], 10);
+    const fileContent = fs.readFileSync(filePath, "utf-8");
+    const lines = fileContent.split("\n");
+
+    return lines[lineNumber - 1]?.trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 app.get("/ping", (req, res) => {
@@ -81,15 +96,20 @@ app.post("/scan", (req, res) => {
       .json({ error: "Could not read that folder", details: error.message });
   }
 });
+
 app.post("/error", async (req, res) => {
   const { filePath, hasError, output } = req.body;
 
   if (hasError) {
     console.log("🐛 ERROR CAUGHT in:", filePath);
 
+    const codeLine = getCodeContext(filePath, output);
+
     const prompt = `You are a coding mentor. A beginner got this error:
 
 ${output}
+
+${codeLine ? `The actual line of code that failed is:\n${codeLine}\n` : ""}
 
 Rules you MUST follow:
 - Explain what the error MEANS in 1 sentence.
