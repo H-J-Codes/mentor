@@ -1,5 +1,5 @@
 const OLLAMA_URL = "http://localhost:11434/api/generate";
-const MODEL = "qwen2.5:0.5b";
+const MODEL = "llama3.2:1b";
 
 export async function askAI(prompt) {
   const response = await fetch(OLLAMA_URL, {
@@ -9,6 +9,9 @@ export async function askAI(prompt) {
       model: MODEL,
       prompt: prompt,
       stream: false,
+      options: {
+        temperature: 0.3,
+      },
     }),
   });
 

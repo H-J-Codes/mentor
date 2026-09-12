@@ -105,21 +105,21 @@ app.post("/error", async (req, res) => {
 
     const codeLine = getCodeContext(filePath, output);
 
-    const prompt = `You are a coding mentor. A beginner got this error:
+    const prompt = `A beginner has this error:
 
-${output}
+    ${output}
+    ${codeLine ? `Failing line: ${codeLine}` : ""}
 
-${codeLine ? `The actual line of code that failed is:\n${codeLine}\n` : ""}
+    Write ONE short question (under 15 words) that makes them think about the problem themselves.
 
-Rules you MUST follow:
-- Explain what the error MEANS in 1 sentence.
-- Explain why it likely happened in 1 sentence.
-- NEVER mention how to fix it.
-- NEVER write any code.
-- NEVER use words like "fix", "should", "ensure", "add a check", or "solution".
+    STRICT RULES:
+    - Output ONLY the question. Nothing else.
+    - NEVER explain what the error means.
+    - NEVER say what's wrong.
+    - NEVER use the words "fix", "should", "ensure", "undefined", "TypeError".
+    - NEVER give code.
 
-Keep your entire answer under 40 words.`;
-
+    Example of correct style: "What do you expect to be at that position in the list?"`;
     try {
       const explanation = await askAI(prompt);
       console.log("🧑‍🏫 MENTOR explains:", explanation);
@@ -131,6 +131,24 @@ Keep your entire answer under 40 words.`;
   } else {
     console.log("✅ Ran successfully:", filePath);
     res.json({ received: true });
+  }
+});
+app.post("/hint", async (req, res) => {
+  const { filePath, output, level } = req.body;
+  const codeLine = getCodeContext(filePath, output);
+
+  const prompt = `You are a coding mentor giving Hint Level ${level} out of 7 for this error:
+
+${output}
+${codeLine ? `Failing line: ${codeLine}` : ""}
+
+Hint Level 1 = just a gentle NUDGE. Ask a short guiding question. Do NOT explain the error, do NOT mention the concept name, do NOT give any code. One sentence only.`;
+
+  try {
+    const hint = await askAI(prompt);
+    res.json({ hint });
+  } catch (error) {
+    res.json({ hint: null });
   }
 });
 
