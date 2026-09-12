@@ -132,23 +132,39 @@ app.post("/error", async (req, res) => {
     console.log("✅ Ran successfully:", filePath);
     res.json({ received: true });
   }
-});
+});function buildHintPrompt(level, output, codeLine) {
+  const context = `Error:\n${output}\n${codeLine ? `Failing line: ${codeLine}\n` : ""}`;
+
+  const levelInstructions = {
+    1: `Write ONE short question (under 15 words) that makes them think about the problem themselves.
+STRICT RULES: Output ONLY the question. NEVER explain the error. NEVER use "fix", "should", "undefined", "TypeError". NEVER give code.`,
+
+    2: `Name the ONE programming CONCEPT this error relates to (e.g. "array bounds", "null values", "type mismatch") and explain that concept generally, in 1-2 sentences.
+STRICT RULES: Do NOT mention their specific variable names. Do NOT say what's wrong in THEIR code. Do NOT give code.`,
+
+    3: `Point them toward WHERE in their code to look, in 1-2 sentences, using their actual variable/line details.
+STRICT RULES: Do NOT explain the exact fix. Do NOT give code.`,
+
+    4: `The root cause is that the code is trying to access an index that does not exist in the array — the index used is out of range for that array's actual length. Given this exact known cause, write the corrected code that fixes it directly (e.g. using a valid, in-range index). Briefly restate the cause in 1 sentence, then show the fixed code. Do NOT invent a different cause.`,
+  };
+
+  return `You are a coding mentor. A beginner has this error:
+
+${context}
+
+${levelInstructions[level] || levelInstructions[4]}`;
+}
+
 app.post("/hint", async (req, res) => {
   const { filePath, output, level } = req.body;
   const codeLine = getCodeContext(filePath, output);
-
-  const prompt = `You are a coding mentor giving Hint Level ${level} out of 7 for this error:
-
-${output}
-${codeLine ? `Failing line: ${codeLine}` : ""}
-
-Hint Level 1 = just a gentle NUDGE. Ask a short guiding question. Do NOT explain the error, do NOT mention the concept name, do NOT give any code. One sentence only.`;
+  const prompt = buildHintPrompt(level, output, codeLine);
 
   try {
     const hint = await askAI(prompt);
-    res.json({ hint });
+    res.json({ hint, level });
   } catch (error) {
-    res.json({ hint: null });
+    res.json({ hint: null, level });
   }
 });
 
