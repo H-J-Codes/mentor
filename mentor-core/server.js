@@ -46,7 +46,41 @@ function scanDirectory(dirPath, depth = 0, maxDepth = 3) {
     children: children,
   };
 }
+// Tries to find "arrayName[someIndex]" in the failing line, and checks if that index is genuinely valid
+function analyzeArrayBoundsError(filePath, codeLine) {
+  if (!codeLine) return null;
 
+  const accessMatch = codeLine.match(/(\w+)\[(\d+)\]/); // finds something like numbers[5]
+  if (!accessMatch) return null;
+
+  const arrayName = accessMatch[1];
+  const usedIndex = parseInt(accessMatch[2], 10);
+
+  try {
+    const fileContent = fs.readFileSync(filePath, "utf-8");
+    // finds the array's actual declaration, e.g. "const numbers = [1, 2, 3];"
+    const arrayDeclarationRegex = new RegExp(`${arrayName}\\s*=\\s*\\[([^\\]]*)\\]`);
+    const declarationMatch = fileContent.match(arrayDeclarationRegex);
+
+    if (!declarationMatch) return null;
+
+    const items = declarationMatch[1].split(",").filter(item => item.trim() !== "");
+    const actualLength = items.length;
+
+    if (usedIndex >= actualLength) {
+      return {
+        arrayName,
+        usedIndex,
+        actualLength,
+        validIndexExample: actualLength - 1 // the real, genuinely valid last index
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
 // Grabs the specific line the error happened on, straight from the real file
 function getCodeContext(filePath, output) {
   try {
@@ -158,7 +192,25 @@ ${levelInstructions[level] || levelInstructions[4]}`;
 app.post("/hint", async (req, res) => {
   const { filePath, output, level } = req.body;
   const codeLine = getCodeContext(filePath, output);
-  const prompt = buildHintPrompt(level, output, codeLine);
+
+  let prompt;
+  if (level === 4) {
+    const analysis = analyzeArrayBoundsError(filePath, codeLine);
+
+    if (analysis) {
+      prompt = `A beginner's code has this line:
+${codeLine}
+
+FACT (already verified, do not question this): the array "${analysis.arrayName}" has ${analysis.actualLength} items, so valid indexes are 0 to ${analysis.validIndexExample}. The code used index ${analysis.usedIndex}, which does not exist.
+
+Write 1 sentence explaining this fact simply, then show the corrected line of code using index ${analysis.validIndexExample} instead of ${analysis.usedIndex}. Do not use any other index number.`;
+    } else {
+      // fallback to the old approach if our detective function couldn't figure it out
+      prompt = buildHintPrompt(level, output, codeLine);
+    }
+  } else {
+    prompt = buildHintPrompt(level, output, codeLine);
+  }
 
   try {
     const hint = await askAI(prompt);
