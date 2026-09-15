@@ -2,7 +2,7 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import { askAI } from "./ai.js";
-
+import { recordMistake, getAllMistakes } from "./db.js";
 const app = express();
 const PORT = 3000;
 
@@ -100,7 +100,10 @@ function getCodeContext(filePath, output) {
 app.get("/ping", (req, res) => {
   res.json({ message: "pong" });
 });
-
+app.get("/mistakes", (req, res) => {
+  const mistakes = getAllMistakes();
+  res.json(mistakes);
+});
 app.post("/scan", (req, res) => {
   const projectPath = req.body.path;
 
@@ -136,7 +139,8 @@ app.post("/error", async (req, res) => {
 
   if (hasError) {
     console.log("🐛 ERROR CAUGHT in:", filePath);
-
+    const mistakeId = recordMistake(filePath, output);
+    console.log(`📝 Saved to memory as mistake #${mistakeId}`);
     const codeLine = getCodeContext(filePath, output);
 
     const prompt = `A beginner has this error:

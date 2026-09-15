@@ -1,0 +1,29 @@
+import Database from "better-sqlite3";
+
+const db = new Database("mentor.db"); // this creates (or opens) a file called mentor.db
+
+// Create the table if it doesn't already exist — this only actually runs once, ever
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mistakes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filePath TEXT,
+    errorOutput TEXT,
+    hintsUsed INTEGER DEFAULT 0,
+    solvedAlone INTEGER DEFAULT 0,
+    createdAt TEXT
+  )
+`);
+
+export function recordMistake(filePath, errorOutput) {
+  const stmt = db.prepare(`
+    INSERT INTO mistakes (filePath, errorOutput, createdAt)
+    VALUES (?, ?, ?)
+  `);
+  const result = stmt.run(filePath, errorOutput, new Date().toISOString());
+  return result.lastInsertRowid; // gives us back the new row's ID, so we can update it later
+}
+
+export function getAllMistakes() {
+  const stmt = db.prepare(`SELECT * FROM mistakes ORDER BY createdAt DESC`);
+  return stmt.all();
+}
