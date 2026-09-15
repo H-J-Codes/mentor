@@ -2,7 +2,12 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import { askAI } from "./ai.js";
-import { recordMistake, getAllMistakes } from "./db.js";
+import {
+  recordMistake,
+  getAllMistakes,
+  incrementHints,
+  markSolved,
+} from "./db.js";
 const app = express();
 const PORT = 3000;
 
@@ -161,7 +166,11 @@ app.post("/error", async (req, res) => {
     try {
       const explanation = await askAI(prompt);
       console.log("🧑‍🏫 MENTOR explains:", explanation);
-      res.json({ received: true, explanation: explanation });
+      res.json({
+        received: true,
+        explanation: explanation,
+        mistakeId: mistakeId,
+      });
     } catch (aiError) {
       console.log("Could not reach the AI:", aiError.message);
       res.json({ received: true, explanation: null });
@@ -194,7 +203,11 @@ ${levelInstructions[level] || levelInstructions[4]}`;
 }
 
 app.post("/hint", async (req, res) => {
-  const { filePath, output, level } = req.body;
+  const { filePath, output, level, mistakeId } = req.body; // added mistakeId here
+
+  if (mistakeId) {
+    incrementHints(mistakeId);
+  }
   const codeLine = getCodeContext(filePath, output);
 
   let prompt;
@@ -222,6 +235,15 @@ Write 1 sentence explaining this fact simply, then show the corrected line of co
   } catch (error) {
     res.json({ hint: null, level });
   }
+});
+
+app.post("/solved", (req, res) => {
+  const { mistakeId } = req.body;
+  if (mistakeId) {
+    markSolved(mistakeId);
+    console.log(`✅ Mistake #${mistakeId} marked as solved`);
+  }
+  res.json({ received: true });
 });
 
 app.listen(PORT, () => {

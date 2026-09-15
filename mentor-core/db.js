@@ -27,3 +27,23 @@ export function getAllMistakes() {
   const stmt = db.prepare(`SELECT * FROM mistakes ORDER BY createdAt DESC`);
   return stmt.all();
 }
+
+export function incrementHints(mistakeId) {
+  const stmt = db.prepare(`
+    UPDATE mistakes SET hintsUsed = hintsUsed + 1 WHERE id = ?
+  `);
+  stmt.run(mistakeId);
+}
+
+export function markSolved(mistakeId) {
+  const stmt = db.prepare(`
+    SELECT hintsUsed FROM mistakes WHERE id = ?
+  `);
+  const row = stmt.get(mistakeId);
+  const solvedAlone = row && row.hintsUsed === 0 ? 1 : 0;
+
+  const updateStmt = db.prepare(`
+    UPDATE mistakes SET solvedAlone = ? WHERE id = ?
+  `);
+  updateStmt.run(solvedAlone, mistakeId);
+}
