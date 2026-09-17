@@ -13,14 +13,50 @@ db.exec(`
     createdAt TEXT
   )
 `);
+// Safely add the category column if it doesn't already exist (won't error on repeat runs)
+try {
+  db.exec(`ALTER TABLE mistakes ADD COLUMN category TEXT`);
+} catch (error) {
+  // column already exists, that's fine, ignore
+}
+function categorizeError(errorOutput) {
+  const text = errorOutput.toLowerCase();
 
+  if (
+    text.includes("cannot read properties of undefined") &&
+    text.match(/\[\d+\]/)
+  ) {
+    return "array-bounds";
+  }
+  if (text.includes("is not defined")) {
+    return "undefined-variable";
+  }
+  if (text.includes("is not a function")) {
+    return "wrong-type-called";
+  }
+  if (text.includes("unexpected token") || text.includes("syntaxerror")) {
+    return "syntax-error";
+  }
+  if (text.includes("cannot read properties of null")) {
+    return "null-reference";
+  }
+
+  return "other";
+}
 export function recordMistake(filePath, errorOutput) {
+  const category = categorizeError(errorOutput);
+
   const stmt = db.prepare(`
-    INSERT INTO mistakes (filePath, errorOutput, createdAt)
-    VALUES (?, ?, ?)
+    INSERT INTO mistakes (filePath, errorOutput, category, createdAt)
+    VALUES (?, ?, ?, ?)
   `);
-  const result = stmt.run(filePath, errorOutput, new Date().toISOString());
-  return result.lastInsertRowid; // gives us back the new row's ID, so we can update it later
+  const result = stmt.run(
+    filePath,
+    errorOutput,
+    category,
+    new Date().toISOString(),
+  );
+  return { id: result.lastInsertRowid, category };
 }
 
 export function getAllMistakes() {
@@ -46,4 +82,11 @@ export function markSolved(mistakeId) {
     UPDATE mistakes SET solvedAlone = ? WHERE id = ?
   `);
   updateStmt.run(solvedAlone, mistakeId);
+}
+export function checkRecurring(category) {
+  const stmt = db.prepare(`
+    SELECT COUNT(*) as count FROM mistakes WHERE category = ?
+  `);
+  const result = stmt.get(category);
+  return result.count;
 }

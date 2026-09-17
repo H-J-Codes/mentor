@@ -7,6 +7,7 @@ import {
   getAllMistakes,
   incrementHints,
   markSolved,
+  checkRecurring,
 } from "./db.js";
 const app = express();
 const PORT = 3000;
@@ -102,6 +103,7 @@ function getCodeContext(filePath, output) {
   }
 }
 
+
 app.get("/ping", (req, res) => {
   res.json({ message: "pong" });
 });
@@ -144,8 +146,11 @@ app.post("/error", async (req, res) => {
 
   if (hasError) {
     console.log("🐛 ERROR CAUGHT in:", filePath);
-    const mistakeId = recordMistake(filePath, output);
-    console.log(`📝 Saved to memory as mistake #${mistakeId}`);
+    const { id: mistakeId, category } = recordMistake(filePath, output);
+    const occurrenceCount = checkRecurring(category);
+    console.log(
+      `📝 Saved to memory as mistake #${mistakeId} (category: ${category}, seen ${occurrenceCount}x)`,
+    );
     const codeLine = getCodeContext(filePath, output);
 
     const prompt = `A beginner has this error:
@@ -170,6 +175,9 @@ app.post("/error", async (req, res) => {
         received: true,
         explanation: explanation,
         mistakeId: mistakeId,
+        isRecurring: occurrenceCount >= 3,
+        occurrenceCount: occurrenceCount,
+        category: category,
       });
     } catch (aiError) {
       console.log("Could not reach the AI:", aiError.message);
