@@ -8,6 +8,7 @@ import {
   incrementHints,
   markSolved,
   checkRecurring,
+  checkConceptRecurring,
 } from "./db.js";
 const app = express();
 const PORT = 3000;
@@ -146,8 +147,13 @@ app.post("/error", async (req, res) => {
 
   if (hasError) {
     console.log("🐛 ERROR CAUGHT in:", filePath);
-    const { id: mistakeId, category } = recordMistake(filePath, output);
+    const {
+      id: mistakeId,
+      category,
+      concept,
+    } = recordMistake(filePath, output);
     const occurrenceCount = checkRecurring(category);
+    const conceptCount = checkConceptRecurring(concept);
     console.log(
       `📝 Saved to memory as mistake #${mistakeId} (category: ${category}, seen ${occurrenceCount}x)`,
     );
@@ -178,6 +184,9 @@ app.post("/error", async (req, res) => {
         isRecurring: occurrenceCount >= 3,
         occurrenceCount: occurrenceCount,
         category: category,
+        isConceptRecurring: conceptCount >= 3,
+        conceptCount: conceptCount,
+        concept: concept,
       });
     } catch (aiError) {
       console.log("Could not reach the AI:", aiError.message);
