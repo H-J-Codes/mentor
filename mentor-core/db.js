@@ -126,3 +126,47 @@ export function checkConceptRecurring(concept) {
   const result = stmt.get(concept);
   return result.count;
 }
+export function getStats() {
+  const totalStmt = db.prepare(`SELECT COUNT(*) as total FROM mistakes`);
+  const total = totalStmt.get().total;
+
+  const solvedAloneStmt = db.prepare(
+    `SELECT COUNT(*) as count FROM mistakes WHERE solvedAlone = 1`,
+  );
+  const solvedAlone = solvedAloneStmt.get().count;
+
+  const avgHintsStmt = db.prepare(
+    `SELECT AVG(hintsUsed) as avg FROM mistakes WHERE hintsUsed > 0`,
+  );
+  const avgHintsResult = avgHintsStmt.get().avg;
+  const avgHints = avgHintsResult ? Math.round(avgHintsResult * 10) / 10 : 0;
+
+  const topCategoriesStmt = db.prepare(`
+    SELECT category, COUNT(*) as count
+    FROM mistakes
+    WHERE category IS NOT NULL
+    GROUP BY category
+    ORDER BY count DESC
+    LIMIT 3
+  `);
+  const topCategories = topCategoriesStmt.all();
+
+  const topConceptsStmt = db.prepare(`
+    SELECT concept, COUNT(*) as count
+    FROM mistakes
+    WHERE concept IS NOT NULL AND concept != 'general'
+    GROUP BY concept
+    ORDER BY count DESC
+    LIMIT 3
+  `);
+  const topConcepts = topConceptsStmt.all();
+
+  return {
+    total,
+    solvedAlone,
+    solvedAlonePercent: total > 0 ? Math.round((solvedAlone / total) * 100) : 0,
+    avgHints,
+    topCategories,
+    topConcepts,
+  };
+}

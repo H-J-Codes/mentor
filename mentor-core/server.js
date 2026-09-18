@@ -9,6 +9,7 @@ import {
   markSolved,
   checkRecurring,
   checkConceptRecurring,
+  getStats,
 } from "./db.js";
 const app = express();
 const PORT = 3000;
@@ -111,6 +112,10 @@ app.get("/ping", (req, res) => {
 app.get("/mistakes", (req, res) => {
   const mistakes = getAllMistakes();
   res.json(mistakes);
+});
+app.get("/stats", (req, res) => {
+  const stats = getStats();
+  res.json(stats);
 });
 app.post("/scan", (req, res) => {
   const projectPath = req.body.path;

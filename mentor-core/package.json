@@ -7,6 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -15,4 +16,5 @@
     "chalk": "^6.0.0",
     "express": "^5.2.1"
   }
+  
 }
