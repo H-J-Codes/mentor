@@ -13,12 +13,7 @@ db.exec(`
     createdAt TEXT
   )
 `);
-// Safely add the category column if it doesn't already exist (won't error on repeat runs)
-try {
-  db.exec(`ALTER TABLE mistakes ADD COLUMN category TEXT`);
-} catch (error) {
-  // column already exists, that's fine, ignore
-}
+
 try {
   db.exec(`ALTER TABLE mistakes ADD COLUMN category TEXT`);
 } catch (error) {
@@ -29,6 +24,12 @@ try {
 } catch (error) {
   // already exists, ignore
 }
+try {
+  db.exec(`ALTER TABLE mistakes ADD COLUMN language TEXT`);
+} catch (error) {
+  // already exists, ignore
+}
+
 const CATEGORY_TO_CONCEPT = {
   "array-bounds": "boundary-conditions",
   "loop-boundary": "boundary-conditions",
@@ -43,6 +44,19 @@ const CATEGORY_TO_CONCEPT = {
 function getConcept(category) {
   return CATEGORY_TO_CONCEPT[category] || "general";
 }
+
+function extensionToLanguage(extension) {
+  const map = {
+    ".js": "JavaScript",
+    ".py": "Python",
+    ".ts": "TypeScript",
+    ".java": "Java",
+    ".cpp": "C++",
+    ".c": "C",
+  };
+  return map[extension] || "Unknown";
+}
+
 function categorizeError(errorOutput) {
   const text = errorOutput.toLowerCase();
 
@@ -70,19 +84,22 @@ function categorizeError(errorOutput) {
 
   return "other";
 }
-export function recordMistake(filePath, errorOutput) {
+
+export function recordMistake(filePath, errorOutput, extension) {
   const category = categorizeError(errorOutput);
   const concept = getConcept(category);
+  const language = extensionToLanguage(extension);
 
   const stmt = db.prepare(`
-    INSERT INTO mistakes (filePath, errorOutput, category, concept, createdAt)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO mistakes (filePath, errorOutput, category, concept, language, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
   const result = stmt.run(
     filePath,
     errorOutput,
     category,
     concept,
+    language,
     new Date().toISOString(),
   );
   return { id: result.lastInsertRowid, category, concept };
@@ -112,6 +129,7 @@ export function markSolved(mistakeId) {
   `);
   updateStmt.run(solvedAlone, mistakeId);
 }
+
 export function checkRecurring(category) {
   const stmt = db.prepare(`
     SELECT COUNT(*) as count FROM mistakes WHERE category = ?
@@ -119,6 +137,7 @@ export function checkRecurring(category) {
   const result = stmt.get(category);
   return result.count;
 }
+
 export function checkConceptRecurring(concept) {
   const stmt = db.prepare(`
     SELECT COUNT(*) as count FROM mistakes WHERE concept = ?
@@ -126,6 +145,7 @@ export function checkConceptRecurring(concept) {
   const result = stmt.get(concept);
   return result.count;
 }
+
 export function getStats() {
   const totalStmt = db.prepare(`SELECT COUNT(*) as total FROM mistakes`);
   const total = totalStmt.get().total;
@@ -169,4 +189,27 @@ export function getStats() {
     topCategories,
     topConcepts,
   };
+}
+
+export function getProfile() {
+  const stmt = db.prepare(`
+    SELECT
+      language,
+      COUNT(*) as totalMistakes,
+      SUM(solvedAlone) as solvedAloneCount
+    FROM mistakes
+    WHERE language IS NOT NULL AND language != 'Unknown'
+    GROUP BY language
+    ORDER BY totalMistakes DESC
+  `);
+
+  const rows = stmt.all();
+
+  return rows.map((row) => ({
+    language: row.language,
+    totalMistakes: row.totalMistakes,
+    solvedAlonePercent: Math.round(
+      (row.solvedAloneCount / row.totalMistakes) * 100,
+    ),
+  }));
 }

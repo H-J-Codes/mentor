@@ -10,6 +10,7 @@ import {
   checkRecurring,
   checkConceptRecurring,
   getStats,
+  getProfile,
 } from "./db.js";
 const app = express();
 const PORT = 3000;
@@ -67,12 +68,16 @@ function analyzeArrayBoundsError(filePath, codeLine) {
   try {
     const fileContent = fs.readFileSync(filePath, "utf-8");
     // finds the array's actual declaration, e.g. "const numbers = [1, 2, 3];"
-    const arrayDeclarationRegex = new RegExp(`${arrayName}\\s*=\\s*\\[([^\\]]*)\\]`);
+    const arrayDeclarationRegex = new RegExp(
+      `${arrayName}\\s*=\\s*\\[([^\\]]*)\\]`,
+    );
     const declarationMatch = fileContent.match(arrayDeclarationRegex);
 
     if (!declarationMatch) return null;
 
-    const items = declarationMatch[1].split(",").filter(item => item.trim() !== "");
+    const items = declarationMatch[1]
+      .split(",")
+      .filter((item) => item.trim() !== "");
     const actualLength = items.length;
 
     if (usedIndex >= actualLength) {
@@ -80,7 +85,7 @@ function analyzeArrayBoundsError(filePath, codeLine) {
         arrayName,
         usedIndex,
         actualLength,
-        validIndexExample: actualLength - 1 // the real, genuinely valid last index
+        validIndexExample: actualLength - 1, // the real, genuinely valid last index
       };
     }
   } catch {
@@ -105,7 +110,6 @@ function getCodeContext(filePath, output) {
   }
 }
 
-
 app.get("/ping", (req, res) => {
   res.json({ message: "pong" });
 });
@@ -116,6 +120,10 @@ app.get("/mistakes", (req, res) => {
 app.get("/stats", (req, res) => {
   const stats = getStats();
   res.json(stats);
+});
+app.get("/profile", (req, res) => {
+  const profile = getProfile();
+  res.json(profile);
 });
 app.post("/scan", (req, res) => {
   const projectPath = req.body.path;
@@ -152,11 +160,12 @@ app.post("/error", async (req, res) => {
 
   if (hasError) {
     console.log("🐛 ERROR CAUGHT in:", filePath);
+    const fileExtension = filePath.substring(filePath.lastIndexOf("."));
     const {
       id: mistakeId,
       category,
       concept,
-    } = recordMistake(filePath, output);
+    } = recordMistake(filePath, output, fileExtension);
     const occurrenceCount = checkRecurring(category);
     const conceptCount = checkConceptRecurring(concept);
     console.log(
@@ -201,7 +210,9 @@ app.post("/error", async (req, res) => {
     console.log("✅ Ran successfully:", filePath);
     res.json({ received: true });
   }
-});function buildHintPrompt(level, output, codeLine) {
+});
+
+function buildHintPrompt(level, output, codeLine) {
   const context = `Error:\n${output}\n${codeLine ? `Failing line: ${codeLine}\n` : ""}`;
 
   const levelInstructions = {
